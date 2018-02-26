@@ -1,7 +1,7 @@
 {
-  "name": "wd-order-vue",
+  "name": "vue-scaffold",
   "description": "",
-  "author": "Purelite <default.zhu@gmail.com>",
+  "author": "Purelite <purelite.zhu@gmail.com>",
   "scripts": {
     "prod": "node configs/prod.js --test",
     "pre": "node configs/preprod.js --test",

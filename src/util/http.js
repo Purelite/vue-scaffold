@@ -37,7 +37,6 @@ function _http(url, method, data) {
         }else {
             let msg = response.data.status.status_reason
             let fn = '', applyfn = true
-            //杭州接口
             if(response.data.status.code){
                 switch (response.data.status.code) {
                     case '2':
