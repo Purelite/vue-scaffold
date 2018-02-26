@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd ../../build
-mv order static
+mv Demo static

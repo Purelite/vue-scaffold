@@ -4,7 +4,7 @@
   "author": "Purelite <default.zhu@gmail.com>",
   "scripts": {
     "prod": "node configs/prod.js --test",
-    "pre": "node configs/pre.js --test",
+    "pre": "node configs/preprod.js --test",
     "daily": "node configs/test.js --test",
     "dev": "webpack-dev-server --inline --config configs/webpack.dev.config.js --host 0.0.0.0",
     "mock": "json-server --watch ./src/mocks/test.json --port 8080",

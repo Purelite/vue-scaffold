@@ -68,7 +68,7 @@ module.exports = {
     }),
     new HtmlwebpackPlugin({
       template: path.resolve(__dirname, '../src/index.html'),
-      filename: 'pages/index.php',
+      filename: 'pages/index.html',
       minify: {
         removeComments: false,
         minifyJS: true,
