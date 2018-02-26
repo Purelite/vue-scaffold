@@ -1,0 +1,24 @@
+.dtv-sticky {
+    position: relative;
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    margin: 0 auto !important;
+    left: 0;
+    top: 0;
+    z-index: 10 !important;
+}
+
+.dtv-fixed {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    margin: 0;
+    z-index: 10 !important;
+    width: 100%;
+}
+
+/*new*/
+.sticky-fix {
+    max-width: 750px;
+    width: 100%;
+}

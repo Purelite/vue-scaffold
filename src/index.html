@@ -1,0 +1,463 @@
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+    <meta content="telephone=no" name="format-detection" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link href="" rel="shortcut icon" type="image/x-icon">
+    <title>Title</title>
+    <script type="text/javascript">
+    /**
+     * 
+     * @authors zhuweilei@weidian.com
+     * @date    2016-10-14 10:43:00
+     * @version 1.0.3
+     */
+    (function() {
+        var win = window;
+        var loc = location;
+        var doc = document;
+        if (win.watcher) return;
+        var W = win.watcher = {};
+        var random = function() {
+            return (+new Date()) + '.r' + Math.floor(Math.random() * 1000);
+        };
+        /**
+         * [name description]
+         * @return {[type]} [description]
+         */
+        W.name = function(name) {
+            window.WDMOD = name;
+        }
+        /**
+         * [error 浏览器抛错]
+         * @param  {[type]} err [description]
+         * @return {[type]}    [description]
+         */
+        W.error = function(err) {
+            if (!(err instanceof Error)) {
+                return;
+            }
+            return error({
+                type: 'catched',
+                errorType: err.errorType || 1,
+                msg: err.message || err.description,
+                file: err.filename || err.fileName || err.sourceURL,
+                line: err.lineno || err.lineNumber || err.line,
+                col: err.colno || err.columnNumber,
+                error: err
+            });
+        }
+        /**
+         * [ajaxErr ajax请求抛错]
+         * @param  {[type]} res [服务器返回错误信息]
+         * @return {[type]}     [description]
+         * @todo [增加接口名字的上报]
+         */
+        W.ajaxErr = function(obj) {
+            return error({
+                type: 'ajaxErr',
+                ajaxurl: obj.url,
+                ajaxreq: obj.req,
+                ajaxrep: obj.rep,
+                errorType: obj.errorType
+            })
+        }
+
+        /**
+         * JavaScript 异常统一处理函数
+         * @param  {String} msg  [报错信息]
+         * @param  {String} file [报错所在文件]
+         * @param  {Number} line [报错行数]
+         * @return [Array]      [description]
+         */
+        function error(obj) {
+            var type = obj.type,
+                msg = obj.msg || '',
+                file = obj.file || '',
+                line = obj.line || '',
+                error = obj.error || '',
+                col = obj.col || '',
+                ajaxurl = obj.ajaxurl || '',
+                ajaxreq = JSON.stringify(obj.ajaxreq) || '',
+                ajaxrep = JSON.stringify(obj.ajaxrep) || '',
+                errorType = obj.errorType || '';
+
+            //Script error.不上报！上报也不知道错误 排除掉Uncaught ReferenceError: WeixinJSBridge is not defined不上报
+            if (msg == "Script error." ||
+                msg == "Uncaught ReferenceError: WeixinJSBridge is not defined" ||
+                msg == "Uncaught ReferenceError: ToutiaoJSBridge is not defined" ||
+                msg == "ReferenceError: Can't find variable: WeixinJSBridge"
+            ) {
+                errorType = 6;
+            }
+
+            var data = {
+                projectName: 'projectName', //需要手动传
+                url: loc.href,
+                param: { //扩展字段
+                    ref: doc.referrer || "-",
+                    errGetFrom: type,
+                    clnt: {
+                        appCodeName: navigator.appCodeName,
+                        appName: navigator.appName,
+                        platform: navigator.platform,
+                        appVersion: navigator.appVersion,
+                        UA: navigator.userAgent
+                    }
+                }
+            }
+            if (type === 'window' || type === 'catched') {
+                data.type = errorType || 1; //1,js报错，2，接口报错 
+                data.errorParam = {
+                    errorMessage: msg || '',
+                    scriptURI: file || '',
+                    lineNumber: line || 0,
+                    columnNumber: col || 0,
+                    errorObj: '', ////错误的详细信息
+                }
+
+                if (!!error && !!error.stack) {
+                    //如果浏览器有堆栈信息  直接使用
+                    data.errorParam.stackErr = error.stack.toString();
+                } else if (!!arguments.callee) {
+                    //尝试通过callee拿堆栈信息
+                    var ext = [];
+                    var f = arguments.callee.caller,
+                        c = 3; //堆栈层数 可以自己定制 
+                    //只拿三层堆栈信息
+                    while (f && (--c > 0)) {
+                        ext.push(f.toString());
+                        if (f === f.caller) {
+                            break; //如果有环
+                        }
+                        f = f.caller;
+                    }
+                    ext = ext.join(",");
+                    data.errorParam.stackErr = ext;
+                }
+            } else {
+                data.type = errorType || 2; //1,js报错，2，接口报错 3,4,5自定义 try catch报错 
+                data.errorParam = {
+                    apiUrl: ajaxurl,
+                    apiRequest: ajaxreq,
+                    apiResponse: ajaxrep
+                }
+            }
+            //防止浏览器内存回收导致get请求无法发出
+            var n = 'img_' + random(),
+                img = win[n] = new Image();
+            img.onload = img.onerror = img.onabort = function() {
+                img.onload = img.onerror = img.onabort = null;
+                win[n] = null;
+            };
+            var url = '${process.env.API_DOMAIN.TJSDK}?param=' + encodeURIComponent(JSON.stringify(data));
+            img.src = url;
+            console.log(data);
+        }
+
+        win.onerror = function(msg, file, line, col, err) {
+            error({
+                type: 'window',
+                msg: msg,
+                file: file,
+                line: line,
+                col: col,
+                error: err
+            })
+            return false;
+        }
+
+    })();
+
+
+
+    (function(win, lib) {
+        var doc = win.document
+        var docEl = doc.documentElement
+        var metaEl = doc.querySelector('meta[name="viewport"]')
+        var flexibleEl = doc.querySelector('meta[name="flexible"]')
+        var dpr = 0
+        var scale = 0
+        var tid
+        var flexible = lib.flexible || (lib.flexible = {})
+
+        if (metaEl) {
+            console.warn('将根据已有的meta标签来设置缩放比例')
+            var match = metaEl.getAttribute('content').match(/initial\-scale=([\d\.]+)/)
+            if (match) {
+                scale = parseFloat(match[1])
+                dpr = parseInt(1 / scale)
+            }
+        } else if (flexibleEl) {
+            var content = flexibleEl.getAttribute('content')
+            if (content) {
+                var initialDpr = content.match(/initial\-dpr=([\d\.]+)/)
+                var maximumDpr = content.match(/maximum\-dpr=([\d\.]+)/)
+                if (initialDpr) {
+                    dpr = parseFloat(initialDpr[1])
+                    scale = parseFloat((1 / dpr).toFixed(2))
+                }
+                if (maximumDpr) {
+                    dpr = parseFloat(maximumDpr[1])
+                    scale = parseFloat((1 / dpr).toFixed(2))
+                }
+            }
+        }
+
+        if (!dpr && !scale) {
+            var isAndroid = win.navigator.appVersion.match(/android/gi)
+            var isIPhone = win.navigator.appVersion.match(/iphone/gi)
+            var devicePixelRatio = win.devicePixelRatio
+            if (isIPhone) {
+                // iOS下，对于2和3的屏，用2倍的方案，其余的用1倍方案
+                if (devicePixelRatio >= 3 && (!dpr || dpr >= 3)) {
+                    dpr = 3
+                } else if (devicePixelRatio >= 2 && (!dpr || dpr >= 2)) {
+                    dpr = 2
+                } else {
+                    dpr = 1
+                }
+            } else {
+                // 其他设备下，仍旧使用1倍的方案
+                dpr = 1
+            }
+            scale = 1 / dpr
+        }
+
+        docEl.setAttribute('data-dpr', dpr)
+        if (!metaEl) {
+            metaEl = doc.createElement('meta');
+            metaEl.setAttribute('name', 'viewport')
+            metaEl.setAttribute('content', 'initial-scale=' + scale + ', maximum-scale=' + scale + ', minimum-scale=' + scale + ', user-scalable=no')
+            if (docEl.firstElementChild) {
+                docEl.firstElementChild.appendChild(metaEl)
+            } else {
+                var wrap = doc.createElement('div')
+                wrap.appendChild(metaEl)
+                doc.write(wrap.innerHTML)
+            }
+        }
+
+        function refreshRem() {
+            var width = docEl.getBoundingClientRect().width
+            if (width / dpr > 540) {
+                width = 540 * dpr
+            }
+            var rem = width / 10
+            docEl.style.fontSize = rem + 'px'
+            flexible.rem = win.rem = rem
+        }
+
+        win.addEventListener('resize', function() {
+            clearTimeout(tid)
+            tid = setTimeout(refreshRem, 300)
+        }, false)
+        win.addEventListener('pageshow', function(e) {
+            if (e.persisted) {
+                clearTimeout(tid)
+                tid = setTimeout(refreshRem, 300)
+            }
+        }, false)
+
+        if (doc.readyState === 'complete') {
+            doc.body.style.fontSize = 12 * dpr + 'px'
+        } else {
+            doc.addEventListener('DOMContentLoaded', function() {
+                doc.body.style.fontSize = 12 * dpr + 'px'
+            }, false)
+        }
+
+
+        refreshRem()
+
+        flexible.dpr = win.dpr = dpr
+        flexible.refreshRem = refreshRem
+        flexible.rem2px = function(d) {
+            var val = parseFloat(d) * this.rem
+            if (typeof d === 'string' && d.match(/rem$/)) {
+                val += 'px'
+            }
+            return val
+        }
+        flexible.px2rem = function(d) {
+            var val = parseFloat(d) / this.rem
+            if (typeof d === 'string' && d.match(/px$/)) {
+                val += 'rem'
+            }
+            return val
+        }
+
+    })(window, window['lib'] || (window['lib'] = {}))
+    </script>
+</head>
+
+<body>
+    <div id="app"></div>
+</body>
+ <script type="text/javascript">
+
+  /**
+   * Timing.js
+   */
+  (function(window) {
+      /**
+       * Navigation Timing API helpers
+       * timing.getTimes();
+       **/
+      window.timing = window.timing || {
+          /**
+           * Outputs extended measurements using Navigation Timing API
+           * @param  Object opts Options (simple (bool) - opts out of full data view)
+           * @return Object      measurements
+           */
+          getTimes: function(opts) {
+              var performance = window.performance || window.webkitPerformance || window.msPerformance || window.mozPerformance;
+              if (performance === undefined) {
+                  return false;
+              }
+              var timing = performance.timing;
+              var api = {};
+              opts = opts || {};
+              if (timing) {
+                  if(opts && !opts.simple) {
+                      for (var k in timing) {
+                          // hasOwnProperty does not work because properties are
+                          // added by modifying the object prototype
+                          if(isNumeric(timing[k])) {
+                              api[k] = parseFloat(timing[k]);
+                          }
+                      }
+                  }
+
+                  // Time to first paint
+                  if (api.firstPaint === undefined) {
+                      // All times are relative times to the start time within the
+                      // same objects
+                      var firstPaint = 0;
+                      // Chrome
+                      if (window.chrome && window.chrome.loadTimes) {
+                          // Convert to ms
+                          firstPaint = window.chrome.loadTimes().firstPaintTime * 1000;
+                          api.firstPaintTime = firstPaint - (window.chrome.loadTimes().startLoadTime*1000);
+                      }
+                      // IE
+                      else if (typeof window.performance.timing.msFirstPaint === 'number') {
+                          firstPaint = window.performance.timing.msFirstPaint;
+                          api.firstPaintTime = firstPaint - window.performance.timing.navigationStart;
+                      }
+                      // Firefox
+                      // This will use the first times after MozAfterPaint fires
+                      //else if (window.performance.timing.navigationStart && typeof InstallTrigger !== 'undefined') {
+                      //    api.firstPaint = window.performance.timing.navigationStart;
+                      //    api.firstPaintTime = mozFirstPaintTime - window.performance.timing.navigationStart;
+                      //}
+                      if (opts && !opts.simple) {
+                          api.firstPaint = firstPaint;
+                      }
+                  }
+                  //白屏时间
+                  api.whiteScreen = timing.responseEnd - timing.fetchStart;
+                  //用户可交互时间
+                  api.domReady = (timing.redirectEnd - timing.redirectStart);
+                  //总下载时间
+                  api.onLoad = timing.loadEventEnd - timing.loadEventStart;
+                  //DNS解析时间
+                  api.htmlUpload = timing.responseEnd - timing.requestStart;
+                  //TCP连接时间
+                  api.tcp = timing.connectEnd - timing.connectStart;
+                  //"HTTP请求时间
+                  api.httpRequest = timing.responseEnd - timing.requestStart;
+                  //HTTP响应时间"
+                  api.httpRespond = timing.responseStart - timing.navigationStart;
+              }
+              return api;
+          },
+          /**
+           * Uses console.table() to print a complete table of timing information
+           * @param  Object opts Options (simple (bool) - opts out of full data view)
+           */
+          printTable: function(opts) {
+              var table = {};
+              var data  = this.getTimes(opts) || {};
+              Object.keys(data).sort().forEach(function(k) {
+                  table[k] = {
+                      ms: data[k],
+                      s: +((data[k] / 1000).toFixed(2))
+                  };
+              });
+              console.table(table);
+          },
+          /**
+           * Uses console.table() to print a summary table of timing information
+           */
+          printSimpleTable: function() {
+              this.printTable({simple: true});
+          }
+      };
+      function isNumeric(n) {
+          return !isNaN(parseFloat(n)) && isFinite(n);
+      }
+      var config ={
+        ua : navigator.userAgent.toLowerCase(),
+        platform : function(){
+            var _this = this;
+            if(_this.ua.indexOf("micromessenger") != -1){
+              return 'weixin'
+            }else if(_this.ua.indexOf("qq") != -1){
+              return 'qq';
+            }else if(_this.ua.indexOf('wdapp')!=-1|| _this.ua.indexOf('cambridge')!=-1){
+              return 'app'
+            }else{
+              return 'browser'
+            }
+        },
+        network :function () {
+            var _this = this;
+            if(_this.ua.indexOf("nettype/wifi") != -1){
+              return 'wifi'
+            }else if(_this.ua.indexOf("nettype/4g") != -1){
+              return '4g'
+            }else if(_this.ua.indexOf("nettype/3g") !=-1){
+              return '3g'
+            }else{
+              return 'other'
+            }
+        },
+      }
+
+      var firstScreenTimeNum = 1;
+      if(firstScreenTimeNum){
+          setInterval(function(){
+              if(window.firstScreenTime&&firstScreenTimeNum&&window.performance&&window.performance.timing&&window.performance.timing.fetchStart){
+
+                  var api = window.timing.getTimes();
+                  var param={
+                      'projectName':'projectName',//项目名称
+                      'ua':config.platform(),//weixin ，浏览器内核 ，其他
+                      'network':config.network(),//2G,3G,4G，wifi,其他
+                      'url' : encodeURIComponent(location.href),//页面URL
+                      'whiteScreen':api.whiteScreen,//白屏时间
+                      'domReady':api.domReady,  //用户可交互时间
+                      "onLoad":api.onLoad, //总下载时间
+                      "dns":api.htmlUpload, //html下载时间
+                      "tcp":api.tcp, //TCP连接时间
+                      "httpRequest":api.httpRequest,   //"HTTP请求时间"
+                      "httpRespond":api.httpRespond  //HTTP响应时间"
+                  }
+
+                  firstScreenTimeNum = 0;
+                  var img=new Image();
+                  param.firstScreen = window.firstScreenTime -window.performance.timing.fetchStart; //首屏时间
+                  if(param.firstScreen<=0 || param.firstScreen>5000){
+                      param.firstScreen = 1000;
+                  }
+                  img.src="//xxx.com/H5Performance/log/upload.do?param="+JSON.stringify(param)+"&callback=a";
+              }
+          },200)
+      }
+  })(typeof window !== 'undefined' ? window : {});
+</script>
+</html>
